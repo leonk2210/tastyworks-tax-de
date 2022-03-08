@@ -50,13 +50,14 @@ tax_worksheet.loc[
 
 tax_worksheet.loc[
     np.logical_or(tax_worksheet['OPENING_TRANSACTION'] == 'BTO',
-                  tax_worksheet['OPENING_TRANSACTION'] == 'BUY'), 'PROCEEDS'] = (
-        tax_worksheet['PROCEEDS'] / tax_worksheet['EUR_USD_CLOSE_TX'])
+                  tax_worksheet['OPENING_TRANSACTION'] == 'BUY'),
+    'PROCEEDS'] = (tax_worksheet['PROCEEDS'] /
+                   tax_worksheet['EUR_USD_CLOSE_TX'])
 
 tax_worksheet.loc[
     np.logical_or(tax_worksheet['OPENING_TRANSACTION'] == 'STO',
-                  tax_worksheet['OPENING_TRANSACTION'] == 'SEL'), 'PROCEEDS'] = (
-        tax_worksheet['PROCEEDS'] / tax_worksheet['EUR_USD_OPEN_TX'])
+                  tax_worksheet['OPENING_TRANSACTION'] == 'SEL'),
+    'PROCEEDS'] = (tax_worksheet['PROCEEDS'] / tax_worksheet['EUR_USD_OPEN_TX'])
 
 tax_worksheet.loc[
     np.logical_or(tax_worksheet['OPENING_TRANSACTION'] == 'STO',
@@ -65,4 +66,38 @@ tax_worksheet.loc[
 
 tax_worksheet['GAIN_LOSS'] = tax_worksheet['PROCEEDS'] - tax_worksheet['COST']
 
-print(tax_worksheet['GAIN_LOSS'].sum())
+print('Ausländische Kapitalerträge:', tax_worksheet['GAIN_LOSS'].sum())
+print('Gewinne aus Aktienverkäufen:',
+      tax_worksheet.loc[
+          np.logical_or(tax_worksheet['OPENING_TRANSACTION'] == 'BUY',
+                        tax_worksheet['OPENING_TRANSACTION'] == 'SEL')]
+      ['GAIN_LOSS'].sum())
+
+print('Einkünfte aus Stillhalterprämien und Gewinne aus Termingeschäften:',
+      tax_worksheet.loc[
+          np.logical_and(
+              np.logical_or(tax_worksheet['OPENING_TRANSACTION'] == 'BTO',
+                            tax_worksheet['OPENING_TRANSACTION'] == 'STO'),
+              tax_worksheet['GAIN_LOSS'] > 0)]
+      ['GAIN_LOSS'].sum())
+
+print('Verluste - ohne Verluste aus Aktienverkäufen:',
+      tax_worksheet.loc[
+          np.logical_and(
+              np.logical_or(tax_worksheet['OPENING_TRANSACTION'] == 'BTO',
+                            tax_worksheet['OPENING_TRANSACTION'] == 'STO'),
+              tax_worksheet['GAIN_LOSS'] < 0)]
+      ['GAIN_LOSS'].sum())
+
+print('Verluste aus Aktienverkäufen:',
+      tax_worksheet.loc[
+          np.logical_and(
+              np.logical_or(tax_worksheet['OPENING_TRANSACTION'] == 'BUY',
+                            tax_worksheet['OPENING_TRANSACTION'] == 'SEL'),
+              tax_worksheet['GAIN_LOSS'] < 0)]
+      ['GAIN_LOSS'].sum())
+
+print('Verluste aus Termingeschäften (Verfall):',
+      tax_worksheet.loc[
+          np.logical_and(tax_worksheet['CLOSING_TRANSACTION'] == 'EXP',
+                         tax_worksheet['GAIN_LOSS'] < 0)]['GAIN_LOSS'].sum())
