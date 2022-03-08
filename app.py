@@ -1,21 +1,27 @@
 import argparse
+
+import numpy as np
 import pandas as pd
 
 parser = argparse.ArgumentParser()
 parser.add_argument('tax_worksheet_csv',
-                    help='Tax worksheet (w/ wash sales) from tax center')
+                    help='Tax worksheet (w/o wash sales) from tax center')
 parser.add_argument('eur_usd_csv',
                     help='EUR/USD reference rate from Deutsche Bundesbank')
 args = parser.parse_args()
 
 tax_worksheet = pd.read_csv(filepath_or_buffer=args.tax_worksheet_csv)
+tax_worksheet = tax_worksheet.drop(labels=['TAX YEAR', 'FILE_CLOSING_DATE',
+                                           'GAIN_ADJ', 'SHORT_TERM_GAIN_LOSS',
+                                           'LONG_TERM_GAIN_LOSS',
+                                           'ORDINARY_GAIN_LOSS_AMT'], axis=1)
 
-for col in ['PROCEEDS', 'COST', 'GAIN_LOSS']:
+for col in ['PROCEEDS', 'COST']:
     tax_worksheet[col] = tax_worksheet[col].str.replace(pat='$', repl='',
                                                         regex=False)
     tax_worksheet[col] = pd.to_numeric(arg=tax_worksheet[col])
 
-for col in ['FILE_CLOSING_DATE', 'CLOSE_DATE', 'OPEN_DATE']:
+for col in ['CLOSE_DATE', 'OPEN_DATE']:
     tax_worksheet[col] = pd.to_datetime(arg=tax_worksheet[col],
                                         format='%m/%d/%y')
 
@@ -34,29 +40,29 @@ eur_usd['EUR_USD_RATE'] = pd.to_numeric(arg=eur_usd['EUR_USD_RATE'])
 
 open_rates = eur_usd['EUR_USD_RATE'].loc[tax_worksheet['OPEN_DATE']]
 close_rates = eur_usd['EUR_USD_RATE'].loc[tax_worksheet['CLOSE_DATE']]
-tax_worksheet['EUR_USD_OPEN'] = open_rates.values
-tax_worksheet['EUR_USD_CLOSE'] = close_rates.values
+tax_worksheet['EUR_USD_OPEN_TX'] = open_rates.values
+tax_worksheet['EUR_USD_CLOSE_TX'] = close_rates.values
 
+tax_worksheet.loc[
+    np.logical_or(tax_worksheet['OPENING_TRANSACTION'] == 'BTO',
+                  tax_worksheet['OPENING_TRANSACTION'] == 'BUY'), 'COST'] = (
+        tax_worksheet['COST'] / tax_worksheet['EUR_USD_OPEN_TX'])
 
-def compute_eur_from_usd(row: pd.Series, balance_type: str) -> pd.Series:
-    if row['OPENING_TRANSACTION'] == 'BTO':
-        if balance_type == 'PROCEEDS':
-            return row[balance_type] / row['EUR_USD_CLOSE']
-        elif balance_type == 'COST':
-            return row[balance_type] / row['EUR_USD_OPEN']
-    elif row['OPENING_TRANSACTION'] == 'STO':
-        if balance_type == 'PROCEEDS':
-            return row[balance_type] / row['EUR_USD_OPEN']
-        elif balance_type == 'COST':
-            return row[balance_type] / row['EUR_USD_CLOSE']
+tax_worksheet.loc[
+    np.logical_or(tax_worksheet['OPENING_TRANSACTION'] == 'BTO',
+                  tax_worksheet['OPENING_TRANSACTION'] == 'BUY'), 'PROCEEDS'] = (
+        tax_worksheet['PROCEEDS'] / tax_worksheet['EUR_USD_CLOSE_TX'])
 
+tax_worksheet.loc[
+    np.logical_or(tax_worksheet['OPENING_TRANSACTION'] == 'STO',
+                  tax_worksheet['OPENING_TRANSACTION'] == 'SEL'), 'PROCEEDS'] = (
+        tax_worksheet['PROCEEDS'] / tax_worksheet['EUR_USD_OPEN_TX'])
 
-tax_worksheet['PROCEEDS_EUR'] = tax_worksheet.apply(
-    func=lambda x: compute_eur_from_usd(row=x, balance_type='PROCEEDS'), axis=1)
-tax_worksheet['COST_EUR'] = tax_worksheet.apply(
-    func=lambda x: compute_eur_from_usd(row=x, balance_type='COST'), axis=1)
+tax_worksheet.loc[
+    np.logical_or(tax_worksheet['OPENING_TRANSACTION'] == 'STO',
+                  tax_worksheet['OPENING_TRANSACTION'] == 'SEL'), 'COST'] = (
+        tax_worksheet['COST'] / tax_worksheet['EUR_USD_CLOSE_TX'])
 
-tax_worksheet['GAIN_LOSS_EUR'] = (tax_worksheet['PROCEEDS_EUR']
-                                  - tax_worksheet['COST_EUR'])
+tax_worksheet['GAIN_LOSS'] = tax_worksheet['PROCEEDS'] - tax_worksheet['COST']
 
-print(tax_worksheet['GAIN_LOSS_EUR'].sum())
+print(tax_worksheet['GAIN_LOSS'].sum())
