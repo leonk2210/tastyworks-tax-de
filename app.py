@@ -101,3 +101,5 @@ print('Verluste aus Termingeschäften (Verfall):',
       tax_worksheet.loc[
           np.logical_and(tax_worksheet['CLOSING_TRANSACTION'] == 'EXP',
                          tax_worksheet['GAIN_LOSS'] < 0)]['GAIN_LOSS'].sum())
+
+tax_worksheet.to_csv('tax_results.csv', sep=';')
