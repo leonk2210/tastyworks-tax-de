@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import os
+import warnings
 
 parser = argparse.ArgumentParser()
 parser.add_argument('tax_worksheet_csv',
@@ -33,11 +34,16 @@ if os.path.exists(args.eur_usd_csv):
                       delimiter=';')
 else:
     website = 'https://www.bundesbank.de/statistic-rmi/StatisticDownload'
+
+    unable_to_find = 'Unable to find file "' + args.eur_usd_csv + '".'
+    falling_back = 'Falling back to direct download from ' + website
+    warnings.warn(unable_to_find + ' ' + falling_back)
+
     file_name = '?tsId=BBEX3.D.USD.EUR.BB.AC.000&its_csvFormat=en'
     parameters = '&its_fileFormat=csv&mode=its&its_from=' + args.year
     url = website + file_name + parameters
     eur_usd = pd.read_csv(filepath_or_buffer=url,
-                      delimiter=',', skiprows=5, skipfooter=2)
+                      delimiter=',', engine='python', skiprows=5, skipfooter=2)
 
 eur_usd = eur_usd.iloc[8:, :]
 eur_usd = eur_usd.rename(
