@@ -2,12 +2,15 @@ import argparse
 
 import numpy as np
 import pandas as pd
+import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument('tax_worksheet_csv',
                     help='Tax worksheet (w/o wash sales) from tax center')
 parser.add_argument('eur_usd_csv',
                     help='EUR/USD reference rate from Deutsche Bundesbank')
+parser.add_argument('year',
+                    help='Year to file taxes for')
 args = parser.parse_args()
 
 tax_worksheet = pd.read_csv(filepath_or_buffer=args.tax_worksheet_csv)
@@ -25,8 +28,17 @@ for col in ['CLOSE_DATE', 'OPEN_DATE']:
     tax_worksheet[col] = pd.to_datetime(arg=tax_worksheet[col],
                                         format='%m/%d/%y')
 
-eur_usd = pd.read_csv(filepath_or_buffer=args.eur_usd_csv,
+if os.path.exists(args.eur_usd_csv):
+    eur_usd = pd.read_csv(filepath_or_buffer=args.eur_usd_csv,
                       delimiter=';')
+else:
+    website = 'https://www.bundesbank.de/statistic-rmi/StatisticDownload'
+    file_name = '?tsId=BBEX3.D.USD.EUR.BB.AC.000&its_csvFormat=en'
+    parameters = '&its_fileFormat=csv&mode=its&its_from=' + args.year
+    url = website + file_name + parameters
+    eur_usd = pd.read_csv(filepath_or_buffer=url,
+                      delimiter=',', skiprows=5, skipfooter=2)
+
 eur_usd = eur_usd.iloc[8:, :]
 eur_usd = eur_usd.rename(
     columns={eur_usd.columns[0]: 'DATE', eur_usd.columns[1]: 'EUR_USD_RATE'})
