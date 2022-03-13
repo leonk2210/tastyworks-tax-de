@@ -1,6 +1,6 @@
 # tastyworks-tax-de
 Script to calculate German capital gains tax for Tastyworks brokerage.
 
-## Planned features
-- Export as Excel and/or CSV
-- Handling of possible transactions other than BTO/BTC/STO/STC
+## Beware (!)
+This script is accurate for realised profits at the end of the tax year. 
+It does not take into account earned premiums from open short option positions.
